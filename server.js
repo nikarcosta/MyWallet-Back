@@ -217,6 +217,32 @@ server.get("/minhas-transacoes", async (req, res) => {
     }
 });
 
+
+server.put("/logout", async (req, res) => {
+   
+    const { authorization } = req.headers;
+    const token = authorization?.replace("Bearer ", "");
+
+    const sessao = await db.collection("sessoes").findOne({ token });
+
+    if(!sessao) return res.sendStatus(401);
+
+    try{
+
+        await db.collection("sessoes").deleteOne({ _id: new ObjectId(sessao._id)});
+
+        return res.send("Logout realizado com sucesso");
+
+    } catch(err) {
+
+        console.log(err);
+
+        res.status(500).send("Erro no servidor!");
+    }
+
+    
+});
+
 const PORT = 5000;
 
 server.listen(PORT, () => {
