@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import joi from "joi";
 import bcrypt from "bcrypt";
@@ -46,7 +46,8 @@ const loginUsuarioSchema = joi.object({
 
 const movimentacaoSchema = joi.object({
     valor: joi.number().required(),
-    descricao: joi.string().required()
+    descricao: joi.string().required(),
+    tipo:joi.string().required()
 });
 
 
@@ -94,7 +95,7 @@ server.post("/cadastro", async(req, res) => {
 });
 
 
-server.post("/", async (req,res) => {
+server.post("/entrar", async (req,res) => {
 
     const usuario = req.body;
 
@@ -144,24 +145,22 @@ server.post("/", async (req,res) => {
 
 });
 
-server.post("/nova-entrada", async (req, res) => {
 
+server.post("/movimentacoes", async (req, res) => {
     const movimentacao = req.body;
 
     const { error } = movimentacaoSchema.validate(movimentacao, { abortEarly: false });
 
-
-    if(error) {
+    if(error){
 
         const errors = error.details.map((detail) => detail.message);
 
         return res.status(422).send(errors);
     }
 
-    const { valor, descricao } = movimentacao;
+    const { valor, descricao, tipo } = movimentacao;
 
-
-
+    
     const { authorization } = req.headers;
     const token = authorization?.replace("Bearer ", "");
 
@@ -171,18 +170,18 @@ server.post("/nova-entrada", async (req, res) => {
 
     if(!sessao) return res.sendStatus(401);
 
-
-
     try{
 
         await db.collection("movimentacoes").insertOne({
-            valor,
+            idUsuario: sessao.idUsuario,
+            valor, 
             descricao,
-            tipo: "entrada", 
+            tipo,
             data: dayjs().format("DD/MM")
         });
 
-        res.status(201).send("Nova entrada cadastrada com sucesso!");
+
+        res.status(201).send(`Nova ${tipo} cadastrada com sucesso!`);
 
     } catch (err) {
 
@@ -190,8 +189,33 @@ server.post("/nova-entrada", async (req, res) => {
 
         res.status(500).send("Erro no servidor!");
     }
+
+
 });
 
+
+server.get("/minhas-transacoes", async (req, res) => {
+
+    const { authorization } = req.headers;
+    const token = authorization?.replace("Bearer ", "");
+
+    const sessao = await db.collection("sessoes").findOne({ token });
+
+    if(!sessao) return res.sendStatus(401);
+
+    try{
+
+        const movimentacoesDoUsuario = await db.collection("movimentacoes").find({ idUsuario: new ObjectId(sessao.idUsuario) }).toArray();
+
+        return res.send(movimentacoesDoUsuario);
+
+    } catch(err) {
+
+        console.log(err);
+
+        res.status(500).send("Erro no servidor!");
+    }
+});
 
 const PORT = 5000;
 
