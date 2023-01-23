@@ -243,7 +243,7 @@ server.put("/logout", async (req, res) => {
     
 });
 
-const PORT = 5000;
+const PORT = 5001;
 
 server.listen(PORT, () => {
     console.log(`Servidor rodando na porta: ${PORT}`);
